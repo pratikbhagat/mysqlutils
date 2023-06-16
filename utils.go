@@ -143,7 +143,7 @@ func Update(db *sql.DB, table string, data map[string]interface{}, where []map[s
 	return query, err
 }
 
-func Delete(db *sql.DB, table string, conditions map[string]interface{}) (bool, error) {
+func Delete(db *sql.DB, table string, conditions map[string]interface{}) (string, bool, error) {
 	var query strings.Builder
 	var args []interface{}
 
@@ -167,12 +167,12 @@ func Delete(db *sql.DB, table string, conditions map[string]interface{}) (bool, 
 	// Execute the delete query
 	result, err := db.Exec(query.String(), args...)
 	if err != nil {
-		return false, err
+		return query.String(), false, err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return false, err
+		return query.String(), false, err
 	}
-	return rowsAffected > 0, nil
+	return query.String(), rowsAffected > 0, nil
 }
