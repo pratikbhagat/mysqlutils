@@ -13,7 +13,7 @@ var DB_CONN *sql.DB
 // Select executes a SELECT query on the specified table using the provided database connection.
 // It returns the result as a slice of maps, where each map represents a row with column names as keys.
 
-func Select(db *sql.DB, tableName string, columns []string, whereClause map[string]interface{}) ([]map[string]interface{}, error) {
+func Select(db *sql.DB, tableName string, columns []string, whereClause map[string]interface{}) (string, []map[string]interface{}, error) {
 	query := "SELECT " + strings.Join(columns, ", ") + " FROM " + tableName
 
 	// Prepare the WHERE clause if it exists
@@ -29,13 +29,13 @@ func Select(db *sql.DB, tableName string, columns []string, whereClause map[stri
 
 	rows, err := db.Query(query, whereValues...)
 	if err != nil {
-		return nil, err
+		return query, nil, err
 	}
 	defer rows.Close()
 
 	columnNames, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		return query, nil, err
 	}
 
 	result := []map[string]interface{}{}
@@ -50,7 +50,7 @@ func Select(db *sql.DB, tableName string, columns []string, whereClause map[stri
 
 		err := rows.Scan(columnPointers...)
 		if err != nil {
-			return nil, err
+			return query, nil, err
 		}
 
 		rowData := make(map[string]interface{})
@@ -67,16 +67,17 @@ func Select(db *sql.DB, tableName string, columns []string, whereClause map[stri
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return query, nil, err
 	}
 
-	return result, nil
+	return query, result, nil
 }
 
 // Insert inserts multiple rows into a table.
-func Insert(db *sql.DB, tableName string, data []map[string]interface{}) error {
+func Insert(db *sql.DB, tableName string, data []map[string]interface{}) (string, error) {
+	var query = ``
 	if len(data) == 0 {
-		return nil // Nothing to insert
+		return query, nil // Nothing to insert
 	}
 
 	columns := make([]string, 0, len(data[0]))
@@ -90,7 +91,7 @@ func Insert(db *sql.DB, tableName string, data []map[string]interface{}) error {
 	}
 
 	var values []interface{}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES", tableName, strings.Join(columns, ", "))
+	query = fmt.Sprintf("INSERT INTO %s (%s) VALUES", tableName, strings.Join(columns, ", "))
 
 	rowsValues := make([]string, 0, len(data))
 	for _, row := range data {
@@ -104,19 +105,16 @@ func Insert(db *sql.DB, tableName string, data []map[string]interface{}) error {
 
 	query += strings.Join(rowsValues, ", ")
 
-	fmt.Printf("Query: %s\n", query)
-	fmt.Printf("Values: %+v\n", values)
-
 	_, err := db.Exec(query, values...)
 	if err != nil {
-		return err
+		return query, err
 	}
 
-	return nil
+	return query, nil
 }
 
 // Update updates multiple rows in a table based on the provided data and WHERE conditions.
-func Update(db *sql.DB, table string, data map[string]interface{}, where []map[string]interface{}) error {
+func Update(db *sql.DB, table string, data map[string]interface{}, where []map[string]interface{}) (string, error) {
 	query := "UPDATE %s SET "
 
 	keys := []string{}
@@ -136,14 +134,11 @@ func Update(db *sql.DB, table string, data map[string]interface{}, where []map[s
 	}
 	query += " WHERE " + strings.Join(whereConditions, " AND ")
 
-	fmt.Printf("Query: %s\n", query)
-	fmt.Printf("Values: %+v\n", values)
-
 	stmt, err := db.Prepare(query)
 	if err != nil {
-		return err
+		return query, err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(values...)
-	return err
+	return query, err
 }
