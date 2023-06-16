@@ -142,3 +142,37 @@ func Update(db *sql.DB, table string, data map[string]interface{}, where []map[s
 	_, err = stmt.Exec(values...)
 	return query, err
 }
+
+func Delete(db *sql.DB, table string, conditions map[string]interface{}) (bool, error) {
+	var query strings.Builder
+	var args []interface{}
+
+	query.WriteString("DELETE FROM " + table)
+
+	if len(conditions) > 0 {
+		query.WriteString(" WHERE ")
+
+		// Build the conditions and collect the arguments
+		i := 0
+		for field, value := range conditions {
+			if i > 0 {
+				query.WriteString(" AND ")
+			}
+			query.WriteString(field + " = ?")
+			args = append(args, value)
+			i++
+		}
+	}
+
+	// Execute the delete query
+	result, err := db.Exec(query.String(), args...)
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected > 0, nil
+}
